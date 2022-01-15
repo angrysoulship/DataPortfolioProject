@@ -1,0 +1,145 @@
+
+
+SELECT * 
+FROM test.NashvilleHousingData
+
+
+-- Breaking out Address into indivisual Column (address, city, state)
+
+SELECT PropertyAddress
+from test.NashvilleHousingData;
+
+
+SELECT 
+substr(PropertyAddress, 1, INSTR(PropertyAddress, ',') - 1) as Address,
+SUBSTR(PropertyAddress, INSTR(PropertyAddress, ',') + 1, length(PropertyAddress)) as City
+From test.NashvilleHousingData;
+
+
+ALTER TABLE test.NashvilleHousingData
+add PropertySplitAddress Nvarchar(255);
+
+update test.NashvilleHousingData
+set PropertySplitAddress = substr(PropertyAddress, 1, INSTR(PropertyAddress, ',') - 1)
+
+ALTER TABLE test.NashvilleHousingData
+add PropertySplitCity Nvarchar(255);
+
+update test.NashvilleHousingData
+set PropertySplitCity = SUBSTR(PropertyAddress, INSTR(PropertyAddress, ',') + 1, length(PropertyAddress));
+
+
+Select OwnerAddress
+From test.NashvilleHousingData
+
+-- Using substring_index to breakingout address into indivisual.
+
+
+SELECT 
+SUBSTRING_INDEX(OwnerAddress, ',', 1), SUBSTRING_INDEX(SUBSTRING_INDEX(OwnerAddress, ',', 2), ',', -1), SUBSTRING_INDEX(OwnerAddress, ',', -1)
+From test.NashvilleHousingData;
+
+--add into table
+
+ALTER TABLE test.NashvilleHousingData
+add OwnerSplitAddress Nvarchar(255);
+
+update test.NashvilleHousingData
+set OwnerSplitAddress = SUBSTRING_INDEX(OwnerAddress, ',', 1);
+
+ALTER TABLE test.NashvilleHousingData
+add OwnerSplitCity Nvarchar(255);
+
+update test.NashvilleHousingData
+set OwnerSplitCity = SUBSTRING_INDEX(SUBSTRING_INDEX(OwnerAddress, ',', 2), ',', -1);
+
+ALTER TABLE test.NashvilleHousingData
+add OwnerSplitState Nvarchar(255);
+
+update test.NashvilleHousingData
+set OwnerSplitState = SUBSTRING_INDEX(OwnerAddress, ',', -1);
+
+--  Change Y and N to Yes and No in "Sold as Vacant" field
+
+Select distinct(SoldAsVacant), Count(SoldAsVacant)
+from test.NashvilleHousingData
+group by SoldAsVacant
+order by 2
+
+
+select SoldAsVacant, 
+CASE when SoldAsVacant = 'Y' Then 'Yes'
+	 when SoldAsVacant = 'N' Then 'No'
+	 ELSE SoldAsVacant
+	 END
+From test.NashvilleHousingData
+
+
+update test.NashvilleHousingData
+SET SoldAsVacant = 
+CASE when SoldAsVacant = 'Y' Then 'Yes'
+	 when SoldAsVacant = 'N' Then 'No'
+	 ELSE SoldAsVacant
+	 END
+	 
+	 
+	 
+-- Remove Duplicate 
+
+WITH RowNumCTE AS (
+select *, 
+	Row_number() over (
+	partition by ParcelID,
+				 PropertyAddress,
+				 SalePrice,
+				 SaleDate,
+				 LegalReference
+				 Order By 
+				 UniqueId
+					) row_num
+from test.NashvilleHousingData
+order by ParcelId
+)
+DELETE
+from test.NashvilleHousingData
+using test.NashvilleHousingData 
+join RowNumCTE
+on test.NashvilleHousingData.UniqueID = RowNumCTE.uniqueId
+where RowNumCTE.row_num > 1
+
+--- Checking on duplicate row 
+
+WITH RowNumCTE AS (
+select *, 
+	Row_number() over (
+	partition by ParcelID,
+				 PropertyAddress,
+				 SalePrice,
+				 SaleDate,
+				 LegalReference
+				 Order By 
+				 UniqueId
+					) row_num
+from test.NashvilleHousingData
+order by ParcelId
+)
+select *
+FROM RowNumCTE
+where row_num > 1
+
+-- Delete Unused Column
+
+SELECT *
+FROM test.NashvilleHousingData
+
+ALTER TABLE test.NashvilleHousingData
+drop column OwnerAddress;
+
+ALTER TABLE test.NashvilleHousingData
+drop column TaxDistrict;
+
+ALTER TABLE test.NashvilleHousingData
+drop column PropertyAddress;
+
+
+
